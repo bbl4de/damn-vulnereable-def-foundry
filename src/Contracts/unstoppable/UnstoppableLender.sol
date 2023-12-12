@@ -27,6 +27,10 @@ contract UnstoppableLender is ReentrancyGuard {
     function depositTokens(uint256 amount) external nonReentrant {
         if (amount == 0) revert MustDepositOneTokenMinimum();
         // Transfer token from sender. Sender must have first approved them.
+
+        // @audit not following CEI pattern!
+        // q  transferFrom returns a bool - why it is not checked?
+        // q can I transfer a million tokens to this contract with balance of 10 tokens? - function is nonReentrant so rather not
         damnValuableToken.transferFrom(msg.sender, address(this), amount);
         poolBalance = poolBalance + amount;
     }
@@ -34,10 +38,12 @@ contract UnstoppableLender is ReentrancyGuard {
     function flashLoan(uint256 borrowAmount) external nonReentrant {
         if (borrowAmount == 0) revert MustBorrowOneTokenMinimum();
 
+        // q can I manipulate the balance of this contract to be less than borrowAmount? => i can but the next check will fail
         uint256 balanceBefore = damnValuableToken.balanceOf(address(this));
         if (balanceBefore < borrowAmount) revert NotEnoughTokensInPool();
 
         // Ensured by the protocol via the `depositTokens` function
+        // I had to look up the answer, becuase I got confused that this SHOULD fail and was trying to find a way to prevent it from failing...
         if (poolBalance != balanceBefore) revert AssertionViolated();
 
         damnValuableToken.transfer(msg.sender, borrowAmount);

